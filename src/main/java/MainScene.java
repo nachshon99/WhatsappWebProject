@@ -16,6 +16,8 @@ public class MainScene extends JPanel {
     public static final int Y_BUTTON = Window.WINDOW_HEIGHT - 250;
     public static final int SIZE_TEXT_FIELD = 24;
     public static final int SIZE_TEXT = 18;
+    public static final int LENGTH_TEN_DIGITS = 10;
+    public static final int LENGTH_TWELVE_DIGITS = 12;
 
     private JButton openWhatsappWebButton;
     private JTextField enterPhoneNumberTextField;
@@ -42,17 +44,26 @@ public class MainScene extends JPanel {
         this.add(openWhatsappWebButton);
         //ClickButton
         openWhatsappWebButton.addActionListener((event) -> {
-            System.setProperty("webdriver.chrome.driver", "C:\\Users\\kedar\\IdeaProjects\\chromedriver_win32\\chromedriver.exe");
-            ChromeDriver driver = new ChromeDriver();
-            driver.get(URL_WEB);
-            driver.manage().window().maximize();
-
-            if(tryConnect(driver)){
-                frame.setSize(300,100);
-                JOptionPane.showConfirmDialog(frame, "Connection Completed Successfully!", "Status", JOptionPane.CLOSED_OPTION);
+            if(enterPhoneNumberTextField.getText().length() == 0){
+                JOptionPane.showConfirmDialog(frame, "Enter phone number please", "Error", JOptionPane.CLOSED_OPTION);
+            }else{
+                if(!isFormatOfPhoneNumber(enterPhoneNumberTextField.getText())){
+                    JOptionPane.showConfirmDialog(frame, "The phone number is invalid!", "Error", JOptionPane.CLOSED_OPTION);
+                }else {
+                    if(messageToSendTextField.getText().length() == 0){
+                        JOptionPane.showConfirmDialog(frame, "Enter message please", "Error", JOptionPane.CLOSED_OPTION);
+                    }else {
+                        System.setProperty("webdriver.chrome.driver", "C:\\Users\\kedar\\IdeaProjects\\chromedriver_win32\\chromedriver.exe");
+                        ChromeDriver driver = new ChromeDriver();
+                        driver.get(URL_WEB);
+                        driver.manage().window().maximize();
+                        if(tryConnect(driver)){
+                            frame.setSize(300,100);
+                            JOptionPane.showConfirmDialog(frame, "Connection Completed Successfully!", "Status", JOptionPane.CLOSED_OPTION);
+                        }
+                    }
+                }
             }
-            WebElement enterPhoneNumber = driver.findElement(By.cssSelector("div[class=\"_13NKt copyable-text selectable-text\"]"));
-            enterPhoneNumber.sendKeys(enterPhoneNumberTextField.getText());
         });
 
         createUI(this);
@@ -63,6 +74,37 @@ public class MainScene extends JPanel {
         this.add(backgroundLabel);
 
         this.setVisible(true);
+    }
+
+    public static boolean isFormatOfPhoneNumber(String phoneNumber){
+        boolean isValid = false;
+        if(phoneNumber.length() == LENGTH_TEN_DIGITS){
+            if(phoneNumber.charAt(0)=='0'){
+                if(phoneNumber.charAt(1)=='5') {
+                    for (int i = 2; i < phoneNumber.length();i++){
+                        if (Character.isDigit(phoneNumber.charAt(i))) {
+                            isValid = true;
+                        }else {
+                            isValid = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        else if(phoneNumber.length() ==LENGTH_TWELVE_DIGITS){
+            if(phoneNumber.charAt(0) =='9' && phoneNumber.charAt(1) =='7' && phoneNumber.charAt(2) =='2' && phoneNumber.charAt(3) =='5'){
+                for (int i = 4; i < phoneNumber.length();i++){
+                    if(Character.isDigit(phoneNumber.charAt(i))){
+                        isValid = true;
+                    }else {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
+        }
+        return isValid;
     }
 
     public JTextField createTextField(int x, int y, int width, int height) {
