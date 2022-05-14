@@ -4,10 +4,8 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import javax.swing.*;
-import javax.swing.text.Element;
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.util.List;
+
 
 public class MainScene extends JPanel {
     public static final String OPEN_WEB_BUTTON = "Whatsapp Web";
@@ -19,6 +17,8 @@ public class MainScene extends JPanel {
     public static final int SIZE_TEXT = 18;
     public static final int LENGTH_TEN_DIGITS = 10;
     public static final int LENGTH_TWELVE_DIGITS = 12;
+    public static final int SLEEP_TIME = 1000;
+
     private ChromeDriver driver;
     private JButton openWhatsappWebButton;
     private JTextField enterPhoneNumberTextField;
@@ -67,7 +67,7 @@ public class MainScene extends JPanel {
                         textBox.sendKeys(messageToSendTextField.getText());
                         textBox.sendKeys(Keys.ENTER);
                         try {
-                            Thread.sleep(1000);
+                            Thread.sleep(SLEEP_TIME);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
