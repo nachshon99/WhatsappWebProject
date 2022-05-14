@@ -1,14 +1,13 @@
-import org.jsoup.Jsoup;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import javax.swing.*;
-import javax.swing.plaf.basic.BasicButtonListener;
+import javax.swing.text.Element;
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.sql.Driver;
+import java.util.List;
 
 public class MainScene extends JPanel {
     public static final String OPEN_WEB_BUTTON = "Whatsapp Web";
@@ -46,26 +45,35 @@ public class MainScene extends JPanel {
         this.add(openWhatsappWebButton);
         //ClickButton
         openWhatsappWebButton.addActionListener((event) -> {
-
-
-            if(enterPhoneNumberTextField.getText().length() == 0)
-            {
+            if (enterPhoneNumberTextField.getText().length() == 0) {
                 JOptionPane.showConfirmDialog(frame, "Enter phone number please", "Error", JOptionPane.CLOSED_OPTION);
-            }else{
-                if(!checkPhoneNumberFormat(enterPhoneNumberTextField.getText())){
+            } else {
+                if (!checkPhoneNumberFormat(enterPhoneNumberTextField.getText())) {
                     JOptionPane.showConfirmDialog(frame, "The phone number is invalid!", "Error", JOptionPane.CLOSED_OPTION);
-                }else {
-                    if(messageToSendTextField.getText().length() == 0){
+                } else {
+                    if (messageToSendTextField.getText().length() == 0) {
                         JOptionPane.showConfirmDialog(frame, "Enter message please", "Error", JOptionPane.CLOSED_OPTION);
-                    }else {
+                    } else {
                         System.setProperty("webdriver.chrome.driver", "C:\\Users\\kedar\\IdeaProjects\\chromedriver_win32\\chromedriver.exe");
                         this.driver = new ChromeDriver();
                         driver.get(URL_WEB);
                         driver.manage().window().maximize();
-                        if(tryConnect(driver)){
-                            frame.setSize(300,100);
-                            JOptionPane.showConfirmDialog(frame, "Connection Completed Successfully!", "Status", JOptionPane.CLOSED_OPTION);
+                        if (tryConnect(driver)) {
+                            frame.setSize(300, 100);
+                            connectToPhoneNumber(enterPhoneNumberTextField.getText());
+                            JOptionPane.showMessageDialog(frame, "Connection Completed Successfully!", "Status", JOptionPane.INFORMATION_MESSAGE);
                         }
+                        WebElement textBox = driver.findElement(By.xpath("//*[@id=\"main\"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]"));
+                        textBox.sendKeys(messageToSendTextField.getText());
+                        textBox.sendKeys(Keys.ENTER);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        driver.close();
+                        JOptionPane.showConfirmDialog(frame, "The send succeeded!", "Send Message", JOptionPane.CLOSED_OPTION);
+
                     }
                 }
             }
@@ -81,47 +89,34 @@ public class MainScene extends JPanel {
         this.setVisible(true);
     }
 
-    public void connectToPhoneNumber(String phoneNumber)
-    {
-        String apiToConnect= "https://api.whatsapp.com/send?phone=";
-        if( checkPhoneNumberFormat(phoneNumber))
-        {
-            this.driver.get(apiToConnect+phoneNumber);
-        }
-
+    public void connectToPhoneNumber(String phoneNumber) {
+        String urlToChat = "https://web.whatsapp.com/send?phone=";
+        String phoneNumberWithoutZero = phoneNumber.substring(1);
+        this.driver.get(urlToChat + phoneNumberWithoutZero);
     }
 
 
-    public void arrangeNumber(String number)
-    {
-
-
-    }
-
-
-    public static boolean checkPhoneNumberFormat(String phoneNumber)
-    {
+    public static boolean checkPhoneNumberFormat(String phoneNumber) {
         boolean isValid = false;
-        if(phoneNumber.length() == LENGTH_TEN_DIGITS){
-            if(phoneNumber.charAt(0)=='0'){
-                if(phoneNumber.charAt(1)=='5') {
-                    for (int i = 2; i < phoneNumber.length();i++){
+        if (phoneNumber.length() == LENGTH_TEN_DIGITS) {
+            if (phoneNumber.charAt(0) == '0') {
+                if (phoneNumber.charAt(1) == '5') {
+                    for (int i = 2; i < phoneNumber.length(); i++) {
                         if (Character.isDigit(phoneNumber.charAt(i))) {
                             isValid = true;
-                        }else {
+                        } else {
                             isValid = false;
                             break;
                         }
                     }
                 }
             }
-        }
-        else if(phoneNumber.length() ==LENGTH_TWELVE_DIGITS){
-            if(phoneNumber.charAt(0) =='9' && phoneNumber.charAt(1) =='7' && phoneNumber.charAt(2) =='2' && phoneNumber.charAt(3) =='5'){
-                for (int i = 4; i < phoneNumber.length();i++){
-                    if(Character.isDigit(phoneNumber.charAt(i))){
+        } else if (phoneNumber.length() == LENGTH_TWELVE_DIGITS) {
+            if (phoneNumber.charAt(0) == '9' && phoneNumber.charAt(1) == '7' && phoneNumber.charAt(2) == '2' && phoneNumber.charAt(3) == '5') {
+                for (int i = 4; i < phoneNumber.length(); i++) {
+                    if (Character.isDigit(phoneNumber.charAt(i))) {
                         isValid = true;
-                    }else {
+                    } else {
                         isValid = false;
                         break;
                     }
@@ -171,12 +166,13 @@ public class MainScene extends JPanel {
         //---------------------------------
 
     }
-    public boolean tryConnect(ChromeDriver driver){
+
+    public boolean tryConnect(ChromeDriver driver) {
         boolean isConnect = false;
-        while (tryToConnect){
+        while (tryToConnect) {
             try {
-                WebElement connect = driver.findElement(By.cssSelector("div[class=\"_1INL_ _1iyey A_WMk _1UG2S\"]"));
-            }catch (Exception e){
+                driver.findElement(By.cssSelector("div[class=\"_1XkO3 two _22rDB\"]"));
+            } catch (Exception e) {
                 tryConnect(driver);
             }
             tryToConnect = false;
