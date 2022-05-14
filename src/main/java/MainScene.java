@@ -1,3 +1,4 @@
+import org.jsoup.Jsoup;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
@@ -7,6 +8,7 @@ import javax.swing.*;
 import javax.swing.plaf.basic.BasicButtonListener;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.sql.Driver;
 
 public class MainScene extends JPanel {
     public static final String OPEN_WEB_BUTTON = "Whatsapp Web";
@@ -18,7 +20,7 @@ public class MainScene extends JPanel {
     public static final int SIZE_TEXT = 18;
     public static final int LENGTH_TEN_DIGITS = 10;
     public static final int LENGTH_TWELVE_DIGITS = 12;
-
+    private ChromeDriver driver;
     private JButton openWhatsappWebButton;
     private JTextField enterPhoneNumberTextField;
     private JTextField messageToSendTextField;
@@ -44,17 +46,20 @@ public class MainScene extends JPanel {
         this.add(openWhatsappWebButton);
         //ClickButton
         openWhatsappWebButton.addActionListener((event) -> {
-            if(enterPhoneNumberTextField.getText().length() == 0){
+
+
+            if(enterPhoneNumberTextField.getText().length() == 0)
+            {
                 JOptionPane.showConfirmDialog(frame, "Enter phone number please", "Error", JOptionPane.CLOSED_OPTION);
             }else{
-                if(!isFormatOfPhoneNumber(enterPhoneNumberTextField.getText())){
+                if(!checkPhoneNumberFormat(enterPhoneNumberTextField.getText())){
                     JOptionPane.showConfirmDialog(frame, "The phone number is invalid!", "Error", JOptionPane.CLOSED_OPTION);
                 }else {
                     if(messageToSendTextField.getText().length() == 0){
                         JOptionPane.showConfirmDialog(frame, "Enter message please", "Error", JOptionPane.CLOSED_OPTION);
                     }else {
                         System.setProperty("webdriver.chrome.driver", "C:\\Users\\kedar\\IdeaProjects\\chromedriver_win32\\chromedriver.exe");
-                        ChromeDriver driver = new ChromeDriver();
+                        this.driver = new ChromeDriver();
                         driver.get(URL_WEB);
                         driver.manage().window().maximize();
                         if(tryConnect(driver)){
@@ -76,7 +81,26 @@ public class MainScene extends JPanel {
         this.setVisible(true);
     }
 
-    public static boolean isFormatOfPhoneNumber(String phoneNumber){
+    public void connectToPhoneNumber(String phoneNumber)
+    {
+        String apiToConnect= "https://api.whatsapp.com/send?phone=";
+        if( checkPhoneNumberFormat(phoneNumber))
+        {
+            this.driver.get(apiToConnect+phoneNumber);
+        }
+
+    }
+
+
+    public void arrangeNumber(String number)
+    {
+
+
+    }
+
+
+    public static boolean checkPhoneNumberFormat(String phoneNumber)
+    {
         boolean isValid = false;
         if(phoneNumber.length() == LENGTH_TEN_DIGITS){
             if(phoneNumber.charAt(0)=='0'){
