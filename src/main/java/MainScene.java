@@ -5,11 +5,13 @@ import org.openqa.selenium.chrome.ChromeDriver;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 
 
 public class MainScene extends JPanel {
     public static final String OPEN_WEB_BUTTON = "Whatsapp Web";
     public static final String URL_WEB = "https://web.whatsapp.com/";
+    public static final String URL_TO_CHAT = "https://web.whatsapp.com/send?phone=";
     public static final String V = "V";
     public static final String VV = "VV";
     public static final int SIZE_BUTTON = 23;
@@ -34,6 +36,7 @@ public class MainScene extends JPanel {
     private JTextField statusTextField;
 
     private boolean tryToConnect = true;
+    private boolean update = true, v1 = true, v2 = true;
 
     public MainScene() {
         this.setSize(Window.WINDOW_WIDTH, Window.WINDOW_HEIGHT);
@@ -68,36 +71,33 @@ public class MainScene extends JPanel {
                         }
                         if (tryToSendMessage()) {
                             new Thread(() -> {
-                                while (true){
-                                    if(checkV(this.driver)){
+                                while (update) {
+                                    if (checkV(this.driver, " נשלחה ", statusTextField) && v1) {
                                         statusTextField.setText(V);
+                                        v1 = false;
                                     }
-                                    if (checkVV(this.driver)){
+                                    if (checkV(this.driver, " נמסרה ", statusTextField) && v2) {
                                         statusTextField.setText(VV);
+                                        v2 = false;
                                     }
-                                    if (check2BlueV(this.driver)){
+                                    if (checkV(this.driver, " נקראה ", statusTextField) && update) {
                                         statusTextField.setDisabledTextColor(Color.BLUE);
+                                        update = false;
                                     }
                                 }
-
                             }).start();
-                            //updateStatus(this.driver, statusTextField);
                             JOptionPane.showConfirmDialog(frame, "The send succeeded!", "Send Message", JOptionPane.CLOSED_OPTION);
                         }
-
                         /*try {
                             Thread.sleep(SLEEP_TIME);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         driver.close();*/
-
                     }
                 }
             }
         });
-
-
         createUI(this);
 
         background = new ImageIcon(this.getClass().getResource("/whatsapp-web.jpg"));
@@ -108,76 +108,44 @@ public class MainScene extends JPanel {
         this.setVisible(true);
     }
 
-    public static void updateStatus(ChromeDriver driver, JTextField textField) {
-        new Thread(() -> {
-            boolean update = true;
-            try {
-                while (update) {
-                    if (checkV(driver)) {
-                        textField.setText(V);
-                    }if (checkVV(driver)) {
-                        textField.setText(VV);
-                    }if (check2BlueV(driver)) {
-                        textField.setDisabledTextColor(Color.BLUE);
-                        update = false;
-                    }
-                }
-            } catch (Exception e) {
-                updateStatus(driver, textField);
-            }
-
-        }).start();
-    }
-
-    public static boolean checkV(ChromeDriver driver) {
+    public static boolean checkV(ChromeDriver driver, String arialLabel, JTextField textField) {
         boolean isV = true;
         boolean check = false;
         try {
             while (isV) {
-                driver.findElement(By.cssSelector("span[aria-label=\" נשלחה \"]"));
-                isV = false;
-                check = true;
+                List<WebElement> messages = driver.findElements(By.cssSelector("span[class=\"_1Gy50\"]"));
+                for (WebElement element : messages) {
+                    if (equals(textField,element.getText())) {
+                        element.findElements(By.cssSelector("span[aria-label=\"" + arialLabel + "\"]"));
+                        isV = false;
+                        check = true;
+                        break;
+                    }
+                }
             }
         } catch (Exception e) {
-            checkV(driver);
+            checkV(driver, arialLabel, textField);
         }
         return check;
     }
 
-    public static boolean checkVV(ChromeDriver driver) {
-        boolean isVV = true;
-        boolean check = false;
-        try {
-            while (isVV) {
-                driver.findElement(By.cssSelector("span[aria-label=\" נמסרה \"]"));
-                isVV = false;
-                check = true;
+    public static boolean equals(JTextField textField, String text){
+        boolean equal = false;
+        for (int i = 0; i < textField.getText().length(); i++) {
+            char currentChar = textField.getText().charAt(i);
+            if(currentChar == text.charAt(i)){
+                equal = true;
+            }else {
+                equal = false;
+                break;
             }
-        } catch (Exception e) {
-            checkVV(driver);
         }
-        return check;
+        return equal;
     }
-
-    public static boolean check2BlueV(ChromeDriver driver) {
-        boolean isBlueVV = true;
-        boolean check = false;
-        try {
-            while (isBlueVV) {
-                driver.findElement(By.cssSelector("span[aria-label=\" נקראה \"]"));
-                isBlueVV = false;
-                check = true;
-            }
-        } catch (Exception e) {
-            check2BlueV(driver);
-        }
-        return check;
-    }
-
     public boolean tryToSendMessage() {
         boolean succeed = false;
         try {
-            WebElement textBox = driver.findElement(By.xpath("//*[@id=\"main\"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]"));
+            WebElement textBox = driver.findElement(By.cssSelector("div[title=\"הקלדת ההודעה\"]"));
             textBox.sendKeys(messageToSendTextField.getText());
             textBox.sendKeys(Keys.ENTER);
             succeed = true;
@@ -187,11 +155,9 @@ public class MainScene extends JPanel {
     }
 
     public void connectToPhoneNumber(String phoneNumber) {
-        String urlToChat = "https://web.whatsapp.com/send?phone=";
         String phoneNumberWithoutZero = phoneNumber.substring(1);
-        this.driver.get(urlToChat + phoneNumberWithoutZero);
+        this.driver.get(URL_TO_CHAT + phoneNumberWithoutZero);
     }
-
 
     public static boolean checkPhoneNumberFormat(String phoneNumber) {
         boolean isValid = false;
@@ -280,7 +246,7 @@ public class MainScene extends JPanel {
         boolean isConnect = false;
         while (tryToConnect) {
             try {
-                driver.findElement(By.cssSelector("div[class=\"zaKsw\"]"));
+                driver.findElement(By.cssSelector("div[class=\"_1ADa8 _3Nsgw app-wrapper-web font-fix os-win\"]"));
             } catch (Exception e) {
                 tryConnect(driver);
             }
