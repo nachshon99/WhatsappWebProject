@@ -5,7 +5,13 @@ import org.openqa.selenium.chrome.ChromeDriver;
 
 import javax.swing.*;
 import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.chrono.ChronoLocalDate;
+import java.time.chrono.ChronoLocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
+import java.util.zip.DataFormatException;
 
 
 public class MainScene extends JPanel {
@@ -23,6 +29,7 @@ public class MainScene extends JPanel {
     public static final int LENGTH_TWELVE_DIGITS = 12;
     public static final int SLEEP_TIME = 1000;
 
+    private LocalDateTime contemporaryTime;
     private ChromeDriver driver;
     private JButton openWhatsappWebButton;
     private JTextField enterPhoneNumberTextField;
@@ -34,6 +41,10 @@ public class MainScene extends JPanel {
     private JLabel enterMessageText;
     private JLabel statusMessage;
     private JTextField statusTextField;
+    private JPanel connectionSucceedPanel = new JPanel();
+    private JLabel connectionLabel = new JLabel("Connection Completed Successfully!");
+    private JPanel sendMessageSucceedPanel = new JPanel();
+    private JLabel sendMessageLabel = new JLabel("The send succeeded!");
 
     private boolean tryToConnect = true;
     private boolean update = true, v1 = true, v2 = true;
@@ -43,6 +54,30 @@ public class MainScene extends JPanel {
         this.setLayout(null);
         this.setBackground(null);
         this.setDoubleBuffered(true);
+
+        connectionSucceedPanel.setBounds(Window.WINDOW_WIDTH / 4, Window.WINDOW_HEIGHT / 2, 350, 50);
+        connectionSucceedPanel.setBackground(Color.BLUE);
+        connectionLabel.setBounds(connectionSucceedPanel.getX() + 50,
+                connectionSucceedPanel.getY(),
+                connectionSucceedPanel.getWidth(),
+                connectionSucceedPanel.getHeight());
+        connectionLabel.setFont(new Font("arial", Font.BOLD, 20));
+        connectionLabel.setForeground(Color.YELLOW);
+        connectionSucceedPanel.add(connectionLabel);
+        connectionSucceedPanel.setVisible(false);
+        this.add(connectionSucceedPanel);
+
+        sendMessageSucceedPanel.setBounds(Window.WINDOW_WIDTH / 4, Window.WINDOW_HEIGHT / 2 + 50, 350, 50);
+        sendMessageSucceedPanel.setBackground(Color.BLUE);
+        sendMessageLabel.setBounds(sendMessageSucceedPanel.getX() + 50,
+                sendMessageSucceedPanel.getY(),
+                sendMessageSucceedPanel.getWidth(),
+                sendMessageSucceedPanel.getHeight());
+        sendMessageLabel.setFont(new Font("arial", Font.BOLD, 20));
+        sendMessageLabel.setForeground(Color.YELLOW);
+        sendMessageSucceedPanel.add(sendMessageLabel);
+        sendMessageSucceedPanel.setVisible(false);
+        this.add(sendMessageSucceedPanel);
 
         //WhatsappWeb button
         openWhatsappWebButton = new JButton(OPEN_WEB_BUTTON);
@@ -66,28 +101,54 @@ public class MainScene extends JPanel {
                         driver.get(URL_WEB);
                         driver.manage().window().maximize();
                         if (tryConnect(driver)) {
+                            connectionSucceedPanel.setVisible(true);
                             connectToPhoneNumber(enterPhoneNumberTextField.getText());
-                            JOptionPane.showConfirmDialog(frame, "Connection Completed Successfully!", "Status", JOptionPane.CLOSED_OPTION);
                         }
                         if (tryToSendMessage()) {
+                            sendMessageSucceedPanel.setVisible(true);
+                            //JOptionPane.showConfirmDialog(frame, "The send succeeded!", "Send Message", JOptionPane.CLOSED_OPTION);
+                            contemporaryTime = LocalDateTime.now();
                             new Thread(() -> {
                                 while (update) {
-                                    if (checkV(this.driver, " נשלחה ", statusTextField) && v1) {
+                                    if (checkV(this.driver, " נשלחה ", contemporaryTime) && v1) {
                                         statusTextField.setText(V);
                                         v1 = false;
                                     }
-                                    if (checkV(this.driver, " נמסרה ", statusTextField) && v2) {
+                                    if (checkV(this.driver, " נמסרה ", contemporaryTime) && v2) {
                                         statusTextField.setText(VV);
                                         v2 = false;
                                     }
-                                    if (checkV(this.driver, " נקראה ", statusTextField) && update) {
+                                    if (checkV(this.driver, " נקראה ", contemporaryTime) && update) {
+                                        statusTextField.setText(VV);
                                         statusTextField.setDisabledTextColor(Color.BLUE);
                                         update = false;
                                     }
+                                    /*while (true){
+                                        if(statusTextField.getText().equals(VV) && statusTextField.getDisabledTextColor().equals(Color.BLUE)){
+                                            try {
+                                                System.out.println("no message");
+                                                contemporaryTime = LocalDateTime.now();
+                                                List<WebElement> messages = driver.findElements(By.cssSelector("span[class=\"22Msk\"]"));
+                                                for (WebElement webElement: messages){
+                                                    System.out.println("A: ");
+                                                    WebElement messageElement = webElement.findElement(By.cssSelector("span[class=\"f804f6gw ln8gz9je\"]"));
+                                                    System.out.println("M: " + messageElement.getText());
+                                                    if(checkV(driver," נקראה ", contemporaryTime) && messageToSendTextField.getText() != messageElement.getText()){
+                                                        System.out.println("have a new message");
+                                                        break;
+                                                    }
+                                                }
+                                                Thread.sleep(10000);
+                                            }catch (InterruptedException e){
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    }*/
                                 }
+
                             }).start();
-                            JOptionPane.showConfirmDialog(frame, "The send succeeded!", "Send Message", JOptionPane.CLOSED_OPTION);
                         }
+
                         /*try {
                             Thread.sleep(SLEEP_TIME);
                         } catch (InterruptedException e) {
@@ -97,61 +158,60 @@ public class MainScene extends JPanel {
                     }
                 }
             }
-        });
-        createUI(this);
 
-        background = new ImageIcon(this.getClass().getResource("/whatsapp-web.jpg"));
-        backgroundLabel = new JLabel(background);
-        backgroundLabel.setSize(Window.WINDOW_WIDTH, Window.WINDOW_HEIGHT);
-        this.add(backgroundLabel);
 
-        this.setVisible(true);
-    }
+    });
 
-    public static boolean checkV(ChromeDriver driver, String arialLabel, JTextField textField) {
-        boolean isV = true;
+    createUI(this);
+
+    background =new ImageIcon(this.getClass().getResource("/whatsapp-web.jpg"));
+    backgroundLabel =new JLabel(background);
+    backgroundLabel.setSize(Window.WINDOW_WIDTH,Window.WINDOW_HEIGHT);
+    this.add(backgroundLabel);
+
+    this.setVisible(true);
+
+}
+
+    public static boolean checkV(ChromeDriver driver, String arialLabel, LocalDateTime time) {
         boolean check = false;
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("H:mm");
         try {
-            while (isV) {
-                List<WebElement> messages = driver.findElements(By.cssSelector("span[class=\"_1Gy50\"]"));
-                for (WebElement element : messages) {
-                    if (equals(textField,element.getText())) {
-                        element.findElements(By.cssSelector("span[aria-label=\"" + arialLabel + "\"]"));
-                        isV = false;
+            List<WebElement> messagesElements = driver.findElements(By.cssSelector("div[class=\"_22Msk\"]"));
+            for (WebElement webElement : messagesElements) {
+                WebElement timeElement = webElement.findElement(By.cssSelector("div[class=\"_1beEj\"]"));
+                System.out.println("A: "+dateTimeFormatter.format(time));
+                System.out.println("B: "+timeElement.getText());
+                if (timeElement.getText().equals(dateTimeFormatter.format(time))) {
+                    WebElement vElement = webElement.findElement(By.cssSelector("div[class=\"do8e0lj9 l7jjieqr k6y3xtnu\"]"));
+                    try {
+                        vElement.findElement(By.cssSelector("span[aria-label=\"" + arialLabel + "\"]"));
                         check = true;
                         break;
+                    } catch (Exception e) {
                     }
                 }
             }
         } catch (Exception e) {
-            checkV(driver, arialLabel, textField);
+            checkV(driver, arialLabel, time);
         }
         return check;
     }
 
-    public static boolean equals(JTextField textField, String text){
-        boolean equal = false;
-        for (int i = 0; i < textField.getText().length(); i++) {
-            char currentChar = textField.getText().charAt(i);
-            if(currentChar == text.charAt(i)){
-                equal = true;
-            }else {
-                equal = false;
-                break;
-            }
-        }
-        return equal;
-    }
     public boolean tryToSendMessage() {
-        boolean succeed = false;
-        try {
-            WebElement textBox = driver.findElement(By.cssSelector("div[title=\"הקלדת ההודעה\"]"));
-            textBox.sendKeys(messageToSendTextField.getText());
-            textBox.sendKeys(Keys.ENTER);
-            succeed = true;
-        } catch (Exception e) {
+        boolean tryToSend = true;
+        while (tryToSend) {
+            try {
+                WebElement textBox = driver.findElement(By.cssSelector("div[title=\"הקלדת ההודעה\"]"));
+                textBox.sendKeys(messageToSendTextField.getText());
+                textBox.sendKeys(Keys.ENTER);
+            } catch (Exception e) {
+                tryToSendMessage();
+            }
+            tryToSend = false;
         }
-        return succeed;
+
+        return true;
     }
 
     public void connectToPhoneNumber(String phoneNumber) {
@@ -246,7 +306,7 @@ public class MainScene extends JPanel {
         boolean isConnect = false;
         while (tryToConnect) {
             try {
-                driver.findElement(By.cssSelector("div[class=\"_1ADa8 _3Nsgw app-wrapper-web font-fix os-win\"]"));
+                driver.findElement(By.cssSelector("div[class=\"_1INL_ _1iyey A_WMk _1UG2S\"]"));
             } catch (Exception e) {
                 tryConnect(driver);
             }
