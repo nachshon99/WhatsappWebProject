@@ -4,16 +4,16 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import javax.swing.*;
 import java.awt.*;
-import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.List;
-
 
 
 public class MainScene extends JPanel {
 
-    private LocalDateTime contemporaryTime;
+
+
     private ChromeDriver driver;
     private JButton openWhatsappWebButton;
     private JTextField enterPhoneNumberTextField;
@@ -26,15 +26,17 @@ public class MainScene extends JPanel {
     private JLabel statusMessage;
     private JTextField statusTextField;
     private JPanel connectionSucceedPanel = new JPanel();
-    private JLabel connectionLabel = new JLabel(Constants.CONNECTION_LABEL);
+    private JLabel connectionLabel;
     private JPanel sendMessageSucceedPanel = new JPanel();
     private JLabel sendMessageLabel = new JLabel(Constants.SEND_MESSAGE_LABEL);
+    private JPanel  messageDisplay=new JPanel();
 
     private boolean tryToConnect = true;
     private boolean update = true, v1 = true, v2 = true;
     private boolean checkMessage = true;
 
     public MainScene() {
+
         this.setSize(Window.WINDOW_WIDTH, Window.WINDOW_HEIGHT);
         this.setLayout(null);
         this.setBackground(null);
@@ -42,18 +44,25 @@ public class MainScene extends JPanel {
 
         connectionSucceedPanel.setBounds(Constants.X_PANEL, Constants.Y_PANEL, Constants.WIDTH_PANEL, Constants.HEIGHT_PANEL);
         connectionSucceedPanel.setBackground(Color.BLUE);
-        connectionLabel.setBounds(connectionSucceedPanel.getX() + Constants.HEIGHT_PANEL,
+
+
+        connectionLabel=createJLabel(
+                Constants.CONNECTION_LABEL,
+                connectionSucceedPanel.getX() + Constants.HEIGHT_PANEL,
                 connectionSucceedPanel.getY(),
                 connectionSucceedPanel.getWidth(),
-                connectionSucceedPanel.getHeight());
-        connectionLabel.setFont(new Font("arial", Font.BOLD, Constants.SIZE_TEXT));
+                connectionSucceedPanel.getHeight(),
+                false);
+
         connectionLabel.setForeground(Color.YELLOW);
-        connectionSucceedPanel.add(connectionLabel);
+
         connectionSucceedPanel.setVisible(false);
+
         this.add(connectionSucceedPanel);
 
         sendMessageSucceedPanel.setBounds(Constants.X_PANEL, Constants.Y_PANEL + Constants.HEIGHT_PANEL, Constants.WIDTH_PANEL, Constants.HEIGHT_PANEL);
         sendMessageSucceedPanel.setBackground(Color.BLUE);
+
         sendMessageLabel.setBounds(sendMessageSucceedPanel.getX() + 20,
                 sendMessageSucceedPanel.getY(),
                 sendMessageSucceedPanel.getWidth(),
@@ -62,6 +71,7 @@ public class MainScene extends JPanel {
         sendMessageLabel.setForeground(Color.YELLOW);
         sendMessageSucceedPanel.add(sendMessageLabel);
         sendMessageSucceedPanel.setVisible(false);
+
         this.add(sendMessageSucceedPanel);
 
         //WhatsappWeb button
@@ -71,8 +81,12 @@ public class MainScene extends JPanel {
         openWhatsappWebButton.setVisible(true);
         this.add(openWhatsappWebButton);
         //ClickButton
+
+
+
         openWhatsappWebButton.addActionListener((event) -> {
-            if (enterPhoneNumberTextField.getText().length() == Constants.INITIALIZE) {
+            if (enterPhoneNumberTextField.getText().length() == Constants.INITIALIZE)
+            {
                 JOptionPane.showConfirmDialog(frame, Constants.ERROR_ENTER_PHONE, "Error", JOptionPane.CLOSED_OPTION);
             } else {
                 if (!checkPhoneNumberFormat(enterPhoneNumberTextField.getText())) {
@@ -88,9 +102,13 @@ public class MainScene extends JPanel {
                         driver.manage().window().maximize();
                         if (tryConnect(driver)) {
                             connectionSucceedPanel.setVisible(true);
+                            connectionLabel.setVisible(true);
                             connectToPhoneNumber(enterPhoneNumberTextField.getText());
                         }
-                        if (tryToSendMessage()) {
+                        tryToSendMessage();
+                        waitingForMessage();
+
+                       /* if (tryToSendMessage()) {
                             sendMessageSucceedPanel.setVisible(true);
                             contemporaryTime = LocalDateTime.now();
                             new Thread(() -> {
@@ -106,7 +124,6 @@ public class MainScene extends JPanel {
                                     if (checkV(this.driver, Constants.STATUS_READ, contemporaryTime) && update) {
                                         statusTextField.setText(Constants.VV);
                                         statusTextField.setDisabledTextColor(Color.BLUE);
-
                                         String message = waitingForMessage(Thread.currentThread(),driver,messageToSendTextField);
                                         JLabel messageLabel = new JLabel(message);
                                         messageLabel.setBounds(openWhatsappWebButton.getX(),openWhatsappWebButton.getY() + openWhatsappWebButton.getHeight() , 500,50);
@@ -115,7 +132,7 @@ public class MainScene extends JPanel {
                                     }
                                 }
                             }).start();
-                        }
+                        }*/
                         //in the end
                         //driver.close();
                     }
@@ -123,8 +140,7 @@ public class MainScene extends JPanel {
             }
         });
 
-        createUI(this);
-
+        createUI();
         background =new ImageIcon(this.getClass().getResource(Constants.PATH_RESOURCE));
         backgroundLabel =new JLabel(background);
         backgroundLabel.setSize(Window.WINDOW_WIDTH,Window.WINDOW_HEIGHT);
@@ -134,37 +150,100 @@ public class MainScene extends JPanel {
 
     }
 
-    public String waitingForMessage(Thread thread, ChromeDriver driver, JTextField textField){
-        WebElement messageElement = null;
-        WebElement checkMessageFromMe = null;
-        while (checkMessage){
+    public void waitingForMessage()
+    {
+        Thread tenSecondThread=new Thread(()->
+        {
+            boolean messagesAreIn=false;
             try {
-                System.out.println("no message");
-                contemporaryTime = LocalDateTime.now();
-                List<WebElement> messages = driver.findElements(By.cssSelector("div[class=\"Nm1g1 _22AX6\"]"));
-                for (WebElement webElement: messages){
-                    try {
-                        checkMessageFromMe = webElement.findElement(By.cssSelector("span[aria-label=\"את/ה:\"]"));
-                    }catch (Exception e){
+                 while (!messagesAreIn)
+                 {
+                   try {
+                        Thread.sleep(10000);
+                     } catch (InterruptedException ex) {
+                         ex.printStackTrace();
+                     }
+                     List<WebElement> allClientsMessages = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-in focusable-list-item\"]"));
+                     allClientsMessages.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-in focusable-list-item\"]")));
+                     LinkedList<String>  allMessagesFromClient =new LinkedList<>();
+                     int lastMessageFromMeHeight = getLastMessageFromMeHeight();
+                     for (WebElement element : allClientsMessages)
+                     {
+                         if (element.getLocation().y > lastMessageFromMeHeight) {
+                             allMessagesFromClient.add(element.getText());
+                         }
+                     }
+                     if(!allMessagesFromClient.isEmpty()) {
+                         displayLastMessages(allMessagesFromClient);
+                         messagesAreIn = true;
+                     }
+                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        tenSecondThread.start();
+    }
+
+    public void displayLastMessages(LinkedList<String> allLastMessagesFromClient)
+    {
+
+        connectionSucceedPanel.setVisible(false);
+        connectionLabel.setVisible(false);
+        System.out.println(allLastMessagesFromClient.toString());
+
+
+        while (!allLastMessagesFromClient.isEmpty())
+        {
+            JTextArea clientsMessages=new JTextArea(
+                    allLastMessagesFromClient.pollFirst(),
+                    6,
+                    20
+            );
+            clientsMessages.setFont(new Font("Serif", Font.LAYOUT_LEFT_TO_RIGHT, 16));
+            clientsMessages.setLineWrap(true);
+            clientsMessages.setWrapStyleWord(true);
+            clientsMessages.setOpaque(false);
+            clientsMessages.setEditable(false);
+            messageDisplay.add(clientsMessages);
+        }
+        messageDisplay.setVisible(true);
+        this.driver.close();
+    }
+
+    public  int getLastMessageFromMeHeight()
+    {
+        boolean gotLastMessage= false;
+        int lastMessageFromMeHeight=0;
+        WebElement test=null;
+        while (!gotLastMessage)
+        {
+            List<WebElement> allMessageFromMe = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-out focusable-list-item\"]"));
+            allMessageFromMe.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-out focusable-list-item\"]")));
+
+            if (!allMessageFromMe.isEmpty())
+            {
+                for  (WebElement element: allMessageFromMe)
+                {
+                    int elementHeight=element.getLocation().getY();
+                    if (elementHeight>lastMessageFromMeHeight)
+                    {
+                        test=element;
+                        lastMessageFromMeHeight=elementHeight;
                     }
-                    //WebElement textElement = webElement.findElement(By.cssSelector("div[class=\"_1Gy50\"]"));
-                    messageElement = webElement.findElement(By.cssSelector("span[class=\"f804f6gw ln8gz9je\"]"));
-                    WebElement timeMessage = webElement.findElement(By.cssSelector("span[class=\"l7jjieqr fewfhwl7\"]"));
-                    LocalDateTime messageTime = LocalDateTime.parse(timeMessage.getText());
-                    if(!textField.getText().equals(messageElement.getText()) && checkMessageFromMe ==null && contemporaryTime.isBefore(messageTime)){
-                        System.out.println("have a new message");
-                        System.out.println(messageElement.getText());
-                        checkMessage = false;
-                        break;
-                    }
-                    thread.sleep(Constants.SLEEP_TIME);
                 }
-            }catch (InterruptedException | DateTimeException e){
+                gotLastMessage=true;
             }
         }
-        return messageElement.getText();
+        assert test != null;
+        //System.out.println(test.getText());
+        return lastMessageFromMeHeight;
     }
-    public static boolean checkV(ChromeDriver driver, String arialLabel, LocalDateTime time) {
+
+
+
+    public static boolean checkV(ChromeDriver driver, String arialLabel, LocalDateTime time)
+    {
         boolean check = false;
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(Constants.TIME_FORMAT);
         try {
@@ -186,20 +265,20 @@ public class MainScene extends JPanel {
         }
         return check;
     }
-    public boolean tryToSendMessage() {
-        boolean tryToSend = true;
-        while (tryToSend) {
+
+
+    public void tryToSendMessage()
+    {
+        boolean tryToSend=false;
+        while (!tryToSend)
+        {
             try {
                 WebElement textBox = driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_SEND_MESSAGE));
-                textBox.sendKeys(messageToSendTextField.getText());
-                textBox.sendKeys(Keys.ENTER);
-            } catch (Exception e) {
-                tryToSendMessage();
-            }
-            tryToSend = false;
+                    textBox.sendKeys(messageToSendTextField.getText());
+                    textBox.sendKeys(Keys.ENTER);
+                    tryToSend=true;
+            } catch (Exception ignored) {}
         }
-
-        return true;
     }
     public void connectToPhoneNumber(String phoneNumber) {
         String phoneNumberWithoutZero = phoneNumber.substring(1);
@@ -241,38 +320,63 @@ public class MainScene extends JPanel {
         textField.setForeground(Color.BLUE);
         textField.setBackground(Color.lightGray);
         textField.setVisible(true);
-
+        this.add(textField);
         return textField;
     }
-    public JLabel createJLabel(String text, int x, int y, int width, int height) {
+    public JLabel createJLabel(String text, int x, int y, int width, int height,boolean visible)
+    {
         JLabel jLabel = new JLabel(text);
         jLabel.setBounds(x, y, width, height);
         jLabel.setFont(new Font("arial", Font.BOLD, Constants.SIZE_TEXT));
-        jLabel.setVisible(true);
-
+        jLabel.setVisible(visible);
+        this.add(jLabel);
         return jLabel;
     }
-    public void createUI(JPanel panel) {
+
+
+    public void createUI()
+    {
+        //
+
+        messageDisplay.setBounds(455,0,this.getWidth()/3,this.getHeight());
+        messageDisplay.setBackground(Color.WHITE);
+        messageDisplay.setVisible(false);
+        this.add(messageDisplay);
+
         //Phone number text
-        enterPhoneNumberTextField = createTextField(Constants.X_BUTTON, Window.WINDOW_HEIGHT / 5, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL);
-        panel.add(enterPhoneNumberTextField);
+        enterPhoneNumberTextField = createTextField(Constants.X_BUTTON,
+                Window.WINDOW_HEIGHT / 5,
+                Constants.WIDTH_TEXT_FIELD,
+                Constants.HEIGHT_PANEL);
 
         //TextField to enter phone number
-        enterPhoneNumberText = createJLabel("Enter phone number: ", enterPhoneNumberTextField.getX(), enterPhoneNumberTextField.getY() - Constants.HEIGHT_PANEL, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL);
-        panel.add(enterPhoneNumberText);
+        enterPhoneNumberText = createJLabel("Enter phone number: ",
+                enterPhoneNumberTextField.getX(),
+                enterPhoneNumberTextField.getY() - Constants.HEIGHT_PANEL,
+                Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL,
+                true);
+
 
         //TextField to enter message
-        messageToSendTextField = createTextField(Constants.X_BUTTON, Window.WINDOW_HEIGHT - 400, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL);
-        panel.add(messageToSendTextField);
+        messageToSendTextField = createTextField(Constants.X_BUTTON,
+                Window.WINDOW_HEIGHT - 400,
+                Constants.WIDTH_TEXT_FIELD,
+                Constants.HEIGHT_PANEL);
 
         //Message text
-        enterMessageText = createJLabel("Enter a message: ", messageToSendTextField.getX(), messageToSendTextField.getY() - Constants.HEIGHT_PANEL, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL);
-        panel.add(enterMessageText);
+        enterMessageText = createJLabel(
+                "Enter a message: ",
+                messageToSendTextField.getX(),
+                messageToSendTextField.getY() - Constants.HEIGHT_PANEL,
+                Constants.WIDTH_TEXT_FIELD,
+                Constants.HEIGHT_PANEL,
+                true);
+
 
         //Status message text
-        statusMessage = createJLabel("Status: ", Window.WINDOW_WIDTH / 10, Window.WINDOW_HEIGHT / 3, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL);
+        statusMessage = createJLabel("Status: ", Window.WINDOW_WIDTH / 10, Window.WINDOW_HEIGHT / 3, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL,true);
         statusMessage.setForeground(Color.BLACK);
-        this.add(statusMessage);
+
 
         //Status Text Field
         statusTextField = createTextField(statusMessage.getX(), statusMessage.getY() + 40, statusMessage.getHeight(), statusMessage.getHeight());
@@ -280,15 +384,18 @@ public class MainScene extends JPanel {
         statusTextField.setDisabledTextColor(Color.GRAY);
         statusTextField.setEnabled(false);
         statusTextField.setText("");
-        this.add(statusTextField);
     }
+
+
+
     public boolean tryConnect(ChromeDriver driver) {
         boolean isConnect = false;
-        while (tryToConnect) {
+        while (tryToConnect)
+        {
             try {
                 driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_CONNECT));
             } catch (Exception e) {
-                tryConnect(driver);
+                continue;
             }
             tryToConnect = false;
             isConnect = true;
