@@ -2,15 +2,16 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
+
 import javax.swing.*;
 import java.awt.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 
-public class MainScene extends JPanel {
+public class MainScene extends JPanel implements Runnable {
 
 
 
@@ -30,10 +31,10 @@ public class MainScene extends JPanel {
     private JPanel sendMessageSucceedPanel = new JPanel();
     private JLabel sendMessageLabel = new JLabel(Constants.SEND_MESSAGE_LABEL);
     private JPanel  messageDisplay=new JPanel();
-
-    private boolean tryToConnect = true;
-    private boolean update = true, v1 = true, v2 = true;
-    private boolean checkMessage = true;
+    private WebElement lastMessage=new RemoteWebElement();
+    private String status=" ";
+    private boolean connected;
+    private boolean connectedToPhoneNumber;
 
     public MainScene() {
 
@@ -44,7 +45,6 @@ public class MainScene extends JPanel {
 
         connectionSucceedPanel.setBounds(Constants.X_PANEL, Constants.Y_PANEL, Constants.WIDTH_PANEL, Constants.HEIGHT_PANEL);
         connectionSucceedPanel.setBackground(Color.BLUE);
-
 
         connectionLabel=createJLabel(
                 Constants.CONNECTION_LABEL,
@@ -82,9 +82,8 @@ public class MainScene extends JPanel {
         this.add(openWhatsappWebButton);
         //ClickButton
 
-
-
-        openWhatsappWebButton.addActionListener((event) -> {
+        openWhatsappWebButton.addActionListener((event) ->
+        {
             if (enterPhoneNumberTextField.getText().length() == Constants.INITIALIZE)
             {
                 JOptionPane.showConfirmDialog(frame, Constants.ERROR_ENTER_PHONE, "Error", JOptionPane.CLOSED_OPTION);
@@ -95,44 +94,28 @@ public class MainScene extends JPanel {
                     if (messageToSendTextField.getText().length() == Constants.INITIALIZE) {
                         JOptionPane.showConfirmDialog(frame, Constants.ERROR_ENTER_MESSAGE, "Error", JOptionPane.CLOSED_OPTION);
                     } else {
+                        initializeDriver();
                         openWhatsappWebButton.setEnabled(false);
-                        System.setProperty(Constants.CHROME_DRIVER, Constants.PATH_TO_CHROME_DRIVER);
-                        this.driver = new ChromeDriver();
-                        driver.get(Constants.URL_WEB);
-                        driver.manage().window().maximize();
-                        if (tryConnect(driver)) {
+                        tryToConnect();
+
+                        if (this.connected)
+                        {
+
                             connectionSucceedPanel.setVisible(true);
                             connectionLabel.setVisible(true);
                             connectToPhoneNumber(enterPhoneNumberTextField.getText());
                         }
-                        tryToSendMessage();
-                        waitingForMessage();
 
-                       /* if (tryToSendMessage()) {
+                       if (this.connectedToPhoneNumber)
+                       {
+                            startMainLoop();
+                            tryToSendMessage();
                             sendMessageSucceedPanel.setVisible(true);
-                            contemporaryTime = LocalDateTime.now();
-                            new Thread(() -> {
-                                while (update) {
-                                    if (checkV(this.driver, Constants.STATUS_SENT, contemporaryTime) && v1) {
-                                        statusTextField.setText(Constants.V);
-                                        v1 = false;
-                                    }
-                                    if (checkV(this.driver, Constants.STATUS_DELIVERED, contemporaryTime) && v2) {
-                                        statusTextField.setText(Constants.VV);
-                                        v2 = false;
-                                    }
-                                    if (checkV(this.driver, Constants.STATUS_READ, contemporaryTime) && update) {
-                                        statusTextField.setText(Constants.VV);
-                                        statusTextField.setDisabledTextColor(Color.BLUE);
-                                        String message = waitingForMessage(Thread.currentThread(),driver,messageToSendTextField);
-                                        JLabel messageLabel = new JLabel(message);
-                                        messageLabel.setBounds(openWhatsappWebButton.getX(),openWhatsappWebButton.getY() + openWhatsappWebButton.getHeight() , 500,50);
-                                        this.add(messageLabel);
-                                        update = false;
-                                    }
-                                }
-                            }).start();
-                        }*/
+                            waitingForMessage();
+                            checkV();
+                        }
+
+
                         //in the end
                         //driver.close();
                     }
@@ -145,10 +128,68 @@ public class MainScene extends JPanel {
         backgroundLabel =new JLabel(background);
         backgroundLabel.setSize(Window.WINDOW_WIDTH,Window.WINDOW_HEIGHT);
         this.add(backgroundLabel);
-
         this.setVisible(true);
+    }
+
+
+
+    public void update()
+    {
+
+
+
+            getLastMessageFromMeHeight();
+            switch (this.status) {
+                case Constants.STATUS_SENT -> {
+                    this.statusTextField.setText(Constants.V);
+                    this.statusTextField.setDisabledTextColor(Color.GRAY);
+                }
+                case Constants.STATUS_DELIVERED -> {
+                    this.statusTextField.setText(Constants.VV);
+                    this.statusTextField.setDisabledTextColor(Color.GRAY);
+                }
+                case Constants.STATUS_READ -> {
+                    this.statusTextField.setText(Constants.VV);
+                    this.statusTextField.setDisabledTextColor(Color.blue);
+                }
+            }
+            statusTextField.repaint();
+
 
     }
+
+
+
+
+
+
+    public void initializeDriver()
+    {
+        System.setProperty(Constants.CHROME_DRIVER, Constants.PATH_TO_CHROME_DRIVER);
+        this.driver = new ChromeDriver();
+        this.driver.get(Constants.URL_WEB);
+        this.driver.manage().window().maximize();
+    }
+
+    public void startMainLoop()
+    {
+        Thread mainThread=new Thread(this);
+        mainThread.start();
+    }
+
+    public void run()
+    {
+        try {
+            while (true) {
+                Thread.sleep(1000);
+                this.update();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+
 
     public void waitingForMessage()
     {
@@ -156,25 +197,19 @@ public class MainScene extends JPanel {
         {
             boolean messagesAreIn=false;
             try {
-                 while (!messagesAreIn)
+                 while (!messagesAreIn&&this.lastMessage!=null)
                  {
                    try {
                         Thread.sleep(10000);
                      } catch (InterruptedException ex) {
                          ex.printStackTrace();
                      }
-                     List<WebElement> allClientsMessages = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-in focusable-list-item\"]"));
+                     int lastMessageFromMeHeight =lastMessage.getLocation().getY();
+                   List<WebElement> allClientsMessages = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-in focusable-list-item\"]"));
                      allClientsMessages.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-in focusable-list-item\"]")));
-                     LinkedList<String>  allMessagesFromClient =new LinkedList<>();
-                     int lastMessageFromMeHeight = getLastMessageFromMeHeight();
-                     for (WebElement element : allClientsMessages)
-                     {
-                         if (element.getLocation().y > lastMessageFromMeHeight) {
-                             allMessagesFromClient.add(element.getText());
-                         }
-                     }
-                     if(!allMessagesFromClient.isEmpty()) {
-                         displayLastMessages(allMessagesFromClient);
+                     allClientsMessages.removeIf(element -> element.getLocation().getY() < lastMessageFromMeHeight);
+                     if(!allClientsMessages.isEmpty()) {
+                         displayLastMessages(allClientsMessages);
                          messagesAreIn = true;
                      }
                  }
@@ -185,18 +220,16 @@ public class MainScene extends JPanel {
         tenSecondThread.start();
     }
 
-    public void displayLastMessages(LinkedList<String> allLastMessagesFromClient)
+    public void displayLastMessages(List<WebElement> allLastMessagesFromClient)
     {
-
         connectionSucceedPanel.setVisible(false);
         connectionLabel.setVisible(false);
-        System.out.println(allLastMessagesFromClient.toString());
-
+        sendMessageSucceedPanel.setVisible(false);
 
         while (!allLastMessagesFromClient.isEmpty())
         {
             JTextArea clientsMessages=new JTextArea(
-                    allLastMessagesFromClient.pollFirst(),
+                    allLastMessagesFromClient.get(0).getText(),
                     6,
                     20
             );
@@ -206,85 +239,92 @@ public class MainScene extends JPanel {
             clientsMessages.setOpaque(false);
             clientsMessages.setEditable(false);
             messageDisplay.add(clientsMessages);
+            allLastMessagesFromClient.remove(0);
         }
         messageDisplay.setVisible(true);
-        this.driver.close();
+        // this.driver.close();
     }
 
-    public  int getLastMessageFromMeHeight()
+    public void getLastMessageFromMeHeight()
     {
         boolean gotLastMessage= false;
-        int lastMessageFromMeHeight=0;
-        WebElement test=null;
+        Integer lastMessageFromMeHeight = null;
         while (!gotLastMessage)
         {
-            List<WebElement> allMessageFromMe = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-out focusable-list-item\"]"));
-            allMessageFromMe.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-out focusable-list-item\"]")));
+            List<WebElement> allMessageFromMe = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-out focusable-list-item\"]"));//first format to find users messages
+            allMessageFromMe.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-out focusable-list-item\"]"))); //second format to find users messages
+
 
             if (!allMessageFromMe.isEmpty())
             {
-                for  (WebElement element: allMessageFromMe)
-                {
-                    int elementHeight=element.getLocation().getY();
-                    if (elementHeight>lastMessageFromMeHeight)
-                    {
-                        test=element;
-                        lastMessageFromMeHeight=elementHeight;
+                for (WebElement element : allMessageFromMe) {
+                    if (lastMessageFromMeHeight == null) {
+                        lastMessageFromMeHeight = element.getLocation().getY();
+                        this.lastMessage = element;
+                    } else {
+                        if (element.getLocation().getY() > lastMessageFromMeHeight) {
+                            lastMessageFromMeHeight = element.getLocation().getY();
+                            this.lastMessage = element;
+                        }
                     }
+
                 }
                 gotLastMessage=true;
             }
         }
-        assert test != null;
-        //System.out.println(test.getText());
-        return lastMessageFromMeHeight;
+        System.out.println(this.lastMessage.getText());
     }
 
-
-
-    public static boolean checkV(ChromeDriver driver, String arialLabel, LocalDateTime time)
+    public void checkV()
     {
-        boolean check = false;
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(Constants.TIME_FORMAT);
-        try {
-            List<WebElement> messagesElements = driver.findElements(By.cssSelector("div[class=\"_22Msk\"]"));
-            for (WebElement webElement : messagesElements) {
-                WebElement timeElement = webElement.findElement(By.cssSelector("div[class=\"_1beEj\"]"));
-                if (timeElement.getText().equals(dateTimeFormatter.format(time))) {
-                    WebElement vElement = webElement.findElement(By.cssSelector("div[class=\"do8e0lj9 l7jjieqr k6y3xtnu\"]"));
-                    try {
-                        vElement.findElement(By.cssSelector("span[aria-label=\"" + arialLabel + "\"]"));
-                        check = true;
-                        break;
-                    } catch (Exception e) {
-                    }
-                }
-            }
-        } catch (Exception e) {
-            checkV(driver, arialLabel, time);
+        while (!this.status.equals(Constants.STATUS_READ))
+        {
+            try {
+                checkTypeOfV(Constants.STATUS_SENT);
+                checkTypeOfV(Constants.STATUS_DELIVERED);
+                checkTypeOfV(Constants.STATUS_READ);
+            } catch (Exception ignored) {}
         }
-        return check;
+    }
+
+    public void checkTypeOfV(String status)
+    {
+        try{
+            if (status.equals(this.lastMessage.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute("aria-label")))
+            {
+
+                System.out.println(this.lastMessage.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute("aria-label"));
+                System.out.println(this.lastMessage.getText());
+                this.status=status;
+
+            }
+        }catch (Exception ignored) {}
     }
 
 
     public void tryToSendMessage()
     {
-        boolean tryToSend=false;
-        while (!tryToSend)
-        {
-            try {
-                WebElement textBox = driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_SEND_MESSAGE));
-                    textBox.sendKeys(messageToSendTextField.getText());
-                    textBox.sendKeys(Keys.ENTER);
-                    tryToSend=true;
-            } catch (Exception ignored) {}
-        }
+
+        while (true)
+          {
+          try {
+             WebElement textBox=driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_SEND_MESSAGE));
+             textBox.sendKeys(messageToSendTextField.getText());
+             textBox.sendKeys(Keys.ENTER);
+               break;
+            }catch (Exception ignored) {}
+          }
     }
-    public void connectToPhoneNumber(String phoneNumber) {
+
+    public void connectToPhoneNumber(String phoneNumber)
+    {
         String phoneNumberWithoutZero = phoneNumber.substring(1);
         this.driver.get(Constants.URL_TO_CHAT + phoneNumberWithoutZero);
+        this.connectedToPhoneNumber=true;
     }
-    public static boolean checkPhoneNumberFormat(String phoneNumber) {
+
+    public static boolean checkPhoneNumberFormat(String phoneNumber)
+    {
         boolean isValid = false;
         if (phoneNumber.length() == Constants.LENGTH_TEN_DIGITS) {
             if (phoneNumber.charAt(0) == Constants.ZERO_CHAR) {
@@ -313,7 +353,9 @@ public class MainScene extends JPanel {
         }
         return isValid;
     }
-    public JTextField createTextField(int x, int y, int width, int height) {
+
+    public JTextField createTextField(int x, int y, int width, int height)
+    {
         JTextField textField = new JTextField();
         textField.setBounds(x, y, width, height);
         textField.setFont(new Font("arial", Font.BOLD, Constants.SIZE_TEXT_FIELD));
@@ -323,6 +365,7 @@ public class MainScene extends JPanel {
         this.add(textField);
         return textField;
     }
+
     public JLabel createJLabel(String text, int x, int y, int width, int height,boolean visible)
     {
         JLabel jLabel = new JLabel(text);
@@ -338,7 +381,7 @@ public class MainScene extends JPanel {
     {
         //
 
-        messageDisplay.setBounds(455,0,this.getWidth()/3,this.getHeight());
+        messageDisplay.setBounds(455,this.getY(),this.getWidth()/3,this.getHeight());
         messageDisplay.setBackground(Color.WHITE);
         messageDisplay.setVisible(false);
         this.add(messageDisplay);
@@ -374,32 +417,37 @@ public class MainScene extends JPanel {
 
 
         //Status message text
-        statusMessage = createJLabel("Status: ", Window.WINDOW_WIDTH / 10, Window.WINDOW_HEIGHT / 3, Constants.WIDTH_TEXT_FIELD, Constants.HEIGHT_PANEL,true);
+        statusMessage = createJLabel("Status: ",
+                Window.WINDOW_WIDTH / 10,
+                Window.WINDOW_HEIGHT / 3,
+                Constants.WIDTH_TEXT_FIELD/2,
+                Constants.HEIGHT_PANEL,true);
         statusMessage.setForeground(Color.BLACK);
+        statusMessage.setBackground(Color.green);
+        statusMessage.setOpaque(true);
 
 
         //Status Text Field
+
+
+
         statusTextField = createTextField(statusMessage.getX(), statusMessage.getY() + 40, statusMessage.getHeight(), statusMessage.getHeight());
         statusTextField.setBackground(Color.black);
-        statusTextField.setDisabledTextColor(Color.GRAY);
+        statusTextField.setDisabledTextColor(Color.cyan);
         statusTextField.setEnabled(false);
         statusTextField.setText("");
     }
 
-
-
-    public boolean tryConnect(ChromeDriver driver) {
-        boolean isConnect = false;
-        while (tryToConnect)
+    public void tryToConnect()
+    {
+        while (true)
         {
             try {
-                driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_CONNECT));
-            } catch (Exception e) {
-                continue;
-            }
-            tryToConnect = false;
-            isConnect = true;
+                this.driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_CONNECT));
+                break;
+            } catch (Exception ignored) {}
         }
-        return isConnect;
+        this.connected = true;
     }
+
 }
