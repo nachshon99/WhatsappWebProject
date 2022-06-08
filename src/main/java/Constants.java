@@ -7,8 +7,8 @@ public class Constants {
     public static final String OPEN_WEB_BUTTON = "Whatsapp Web";
     public static final String URL_WEB = "https://web.whatsapp.com/";
     public static final String URL_TO_CHAT = "https://web.whatsapp.com/send?phone=";
-    public static final String V = "V";
-    public static final String VV = "VV";
+    public static final String V= "V";
+    public static final String VV="VV";
     public static final char NINE_CHAR = '9';
     public static final char SEVEN_CHAR = '7';
     public static final char TWO_CHAR = '2';
