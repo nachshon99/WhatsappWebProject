@@ -6,15 +6,10 @@ import org.openqa.selenium.remote.RemoteWebElement;
 
 import javax.swing.*;
 import java.awt.*;
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 
 public class MainScene extends JPanel implements Runnable {
-
-
 
     private ChromeDriver driver;
     private JButton openWhatsappWebButton;
@@ -25,17 +20,19 @@ public class MainScene extends JPanel implements Runnable {
     private JLabel backgroundLabel;
     private JLabel enterPhoneNumberText;
     private JLabel enterMessageText;
-    private JLabel statusMessage;
+    private JLabel statusMessageLabel;
     private JTextField statusTextField;
     private JPanel connectionSucceedPanel = new JPanel();
     private JLabel connectionLabel;
     private JPanel sendMessageSucceedPanel = new JPanel();
     private JLabel sendMessageLabel = new JLabel(Constants.SEND_MESSAGE_LABEL);
-    private JPanel  messageDisplay=new JPanel();
-    private WebElement lastMessage=new RemoteWebElement();
-    private String status=" ";
+    private JPanel messageDisplayPanel =new JPanel();
+    private WebElement lastMessageElement =new RemoteWebElement();
+    private String status="";
     private boolean connectedToWeb;
     private boolean connectedToPhoneNumber;
+    private boolean checkOnce = false;
+    private JTextArea clientsMessages;
 
     public MainScene() {
 
@@ -49,7 +46,7 @@ public class MainScene extends JPanel implements Runnable {
 
         connectionLabel=createJLabel(
                 Constants.CONNECTION_LABEL,
-                connectionSucceedPanel.getX() + Constants.HEIGHT_PANEL,
+                connectionSucceedPanel.getX() + 5,
                 connectionSucceedPanel.getY(),
                 connectionSucceedPanel.getWidth(),
                 connectionSucceedPanel.getHeight(),
@@ -98,27 +95,20 @@ public class MainScene extends JPanel implements Runnable {
                         initializeDriver();
                         openWhatsappWebButton.setEnabled(false);
                         tryToConnect();
-
                         if (this.connectedToWeb)
                         {
-
                             connectionSucceedPanel.setVisible(true);
                             connectionLabel.setVisible(true);
                             connectToPhoneNumber(enterPhoneNumberTextField.getText());
                         }
-
-                       if (this.connectedToPhoneNumber)
-                       {
+                        if (this.connectedToPhoneNumber)
+                        {
                             startMainLoop();
                             tryToSendMessage();
                             sendMessageSucceedPanel.setVisible(true);
-                            waitingForMessage();
                             checkV();
+                            waitingForMessage();
                         }
-
-
-                        //in the end
-                        //driver.close();
                     }
                 }
             }
@@ -132,38 +122,15 @@ public class MainScene extends JPanel implements Runnable {
         this.setVisible(true);
     }
 
-
-
     public void update()
     {
         if (this.connectedToPhoneNumber)
         {
-            switch (this.status) {
-                case Constants.STATUS_SENT -> {
-                    this.statusTextField.setText(Constants.V);
-                }
-                case Constants.STATUS_DELIVERED -> {
-                    this.statusTextField.setText(Constants.VV);
-                    statusMessage.setText(Constants.VV);
-
-                }
-                case Constants.STATUS_READ -> {
-                    this.statusTextField.setText(Constants.VV);
-                    this.statusTextField.setDisabledTextColor(Color.blue);
-                }
-            }
-            this.statusTextField.paintImmediately(this.statusMessage.getVisibleRect());
+            this.statusTextField.paintImmediately(this.statusMessageLabel.getVisibleRect());
             this.repaint();
             getLastMessageFromMeHeight();
         }
-
-
     }
-
-
-
-
-
 
     public void initializeDriver()
     {
@@ -183,7 +150,6 @@ public class MainScene extends JPanel implements Runnable {
     {
         try {
             while (true) {
-                Thread.sleep(5000);
                 this.update();
             }
         }catch (Exception e){
@@ -191,23 +157,21 @@ public class MainScene extends JPanel implements Runnable {
         }
     }
 
-
-
     public void waitingForMessage()
     {
         Thread tenSecondThread=new Thread(()->
         {
             boolean messagesAreIn=false;
             try {
-                 while (!messagesAreIn&&this.lastMessage!=null) {
+                 while (!messagesAreIn && this.lastMessageElement != null) {
                      try {
-                         Thread.sleep(1000);
+                         Thread.sleep(Constants.SLEEP_TIME);
                      } catch (InterruptedException ex) {
                          ex.printStackTrace();
                      }
-                     if (this.lastMessage != null)
+                     if (this.lastMessageElement != null)
                      {
-                         int lastMessageFromMeHeight = lastMessage.getLocation().getY();
+                         int lastMessageFromMeHeight = lastMessageElement.getLocation().getY();
 
                          List<WebElement> allClientsMessages = this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-in focusable-list-item\"]"));
                          allClientsMessages.addAll(this.driver.findElements(By.cssSelector("div[class=\"_2wUmf message-in focusable-list-item\"]")));
@@ -232,20 +196,21 @@ public class MainScene extends JPanel implements Runnable {
 
         while (!allLastMessagesFromClient.isEmpty())
         {
-            JTextArea clientsMessages=new JTextArea(
+            clientsMessages=new JTextArea(
                     allLastMessagesFromClient.get(0).getText(),
-                    6,
-                    20
+                    Constants.ROWS_TEXT_AREA,
+                    Constants.COLUMNS_TEXT_AREA
             );
-            clientsMessages.setFont(new Font("Serif", Font.LAYOUT_LEFT_TO_RIGHT, 16));
+            clientsMessages.setBounds(this.statusMessageLabel.getX(), this.statusMessageLabel.getY() + statusMessageLabel.getHeight(), this.statusMessageLabel.getWidth(), this.statusMessageLabel.getHeight());
+            clientsMessages.setFont(new Font("Serif", Font.LAYOUT_LEFT_TO_RIGHT, Constants.SIZE_FONT_TEXT_AREA));
             clientsMessages.setLineWrap(true);
             clientsMessages.setWrapStyleWord(true);
             clientsMessages.setOpaque(false);
             clientsMessages.setEditable(false);
-            this.messageDisplay.add(clientsMessages);
+            this.messageDisplayPanel.add(clientsMessages);
             allLastMessagesFromClient.remove(0);
         }
-        this.messageDisplay.setVisible(true);
+        this.messageDisplayPanel.setVisible(true);
         this.driver.close();
     }
 
@@ -261,12 +226,12 @@ public class MainScene extends JPanel implements Runnable {
                 List<WebElement>allMessageFromMeSecondFormat=this.driver.findElements(By.cssSelector("div[class=\"_2wUmf _21bY5 message-out focusable-list-item\"]")); //second format to find users messages
                 if (allMessageFromMeFirstFormat.isEmpty())
                 {
-                    this.lastMessage=allMessageFromMeSecondFormat.get(allMessageFromMeSecondFormat.size()-1);
+                    this.lastMessageElement =allMessageFromMeSecondFormat.get(allMessageFromMeSecondFormat.size()-1);
                     gotLastMessage=true;
                 }
                 if (allMessageFromMeSecondFormat.isEmpty())
                 {
-                    this.lastMessage=allMessageFromMeFirstFormat.get(allMessageFromMeFirstFormat.size()-1);
+                    this.lastMessageElement =allMessageFromMeFirstFormat.get(allMessageFromMeFirstFormat.size()-1);
                     gotLastMessage=true;
                 }
 
@@ -277,41 +242,58 @@ public class MainScene extends JPanel implements Runnable {
 
                     if(lastMessageInFirstFormat.getLocation().getY()>lastMessageInSecondFormat.getLocation().getY())
                     {
-                        this.lastMessage=lastMessageInFirstFormat;
+                        this.lastMessageElement =lastMessageInFirstFormat;
                     }else
                     {
-                        this.lastMessage=lastMessageInSecondFormat;
+                        this.lastMessageElement =lastMessageInSecondFormat;
                     }
                     gotLastMessage=true;
                 }
 
             }catch (Exception ignored) {}
         }
-        System.out.println(this.lastMessage.getText());
+        //System.out.println(this.lastMessageElement.getText());
     }
 
     public void checkV()
     {
-
-        while (!this.status.equals(Constants.STATUS_READ))
+        while (!this.status.equals(Constants.STATUS_READ_HEBREW))
         {
             try {
-                checkTypeOfV(Constants.STATUS_SENT);
-                checkTypeOfV(Constants.STATUS_DELIVERED);
-                checkTypeOfV(Constants.STATUS_READ);
+                checkTypeOfV(Constants.STATUS_SENT_HEBREW);
+                checkTypeOfV(Constants.STATUS_DELIVERED_HEBREW);
+                checkTypeOfV(Constants.STATUS_READ_HEBREW);
             } catch (Exception ignored) {}
         }
+
+
     }
 
     public void checkTypeOfV(String status)
     {
         try{
-            if (status.equals(this.lastMessage.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute("aria-label")))
+            if (status.equals(this.lastMessageElement.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute(Constants.ATTRIBUTE_STATUS)))
             {
-                System.out.println(this.lastMessage.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute("aria-label"));
-                System.out.println(this.lastMessage.getText());
-                this.status=status;
-
+                this.status = status;
+                switch (this.status) {
+                    case Constants.STATUS_SENT_HEBREW -> {
+                        this.statusTextField.setText(Constants.V);
+                        break;
+                    }
+                    case Constants.STATUS_DELIVERED_HEBREW -> {
+                        this.statusTextField.setText(Constants.VV);
+                        break;
+                    }
+                    case Constants.STATUS_READ_HEBREW -> {
+                        this.statusTextField.setText(Constants.VV);
+                        this.statusTextField.setDisabledTextColor(Color.blue);
+                        checkOnce = true;
+                        break;
+                    }
+                }
+                //System.out.println(this.lastMessageElement.findElement(By.cssSelector("span[aria-label=\"" + status + "\"]")).getAttribute(Constants.ATTRIBUTE_STATUS));
+                //System.out.println(this.lastMessageElement.getText());
+                //this.clientsMessages.setText(this.status);
             }
         }catch (Exception ignored) {}
     }
@@ -319,14 +301,13 @@ public class MainScene extends JPanel implements Runnable {
 
     public void tryToSendMessage()
     {
-
         while (true)
           {
           try {
              WebElement textBox=driver.findElement(By.cssSelector(Constants.CSS_SELECTOR_TRY_SEND_MESSAGE));
              textBox.sendKeys(messageToSendTextField.getText());
              textBox.sendKeys(Keys.ENTER);
-               break;
+             break;
             }catch (Exception ignored) {}
           }
     }
@@ -394,12 +375,10 @@ public class MainScene extends JPanel implements Runnable {
 
     public void createUI()
     {
-        //
-
-        this.messageDisplay.setBounds(455,this.getY(),this.getWidth()/3,this.getHeight());
-        this.messageDisplay.setBackground(Color.WHITE);
-        this.messageDisplay.setVisible(false);
-        this.add(messageDisplay);
+        this.messageDisplayPanel.setBounds(455,this.getY(),this.getWidth()/3,this.getHeight());
+        this.messageDisplayPanel.setBackground(Color.WHITE);
+        this.messageDisplayPanel.setVisible(false);
+        this.add(messageDisplayPanel);
 
         //Phone number text
         this.enterPhoneNumberTextField = createTextField(Constants.X_BUTTON,
@@ -431,23 +410,23 @@ public class MainScene extends JPanel implements Runnable {
                 true);
 
 
-        //Status message text
-        this.statusMessage = createJLabel("Status: ",
+        //Status message Label
+        this.statusMessageLabel = createJLabel("Status: ",
                 Window.WINDOW_WIDTH / 10,
                 Window.WINDOW_HEIGHT / 3,
                 Constants.WIDTH_TEXT_FIELD/2,
                 Constants.HEIGHT_PANEL,true);
-        this.statusMessage.setForeground(Color.BLACK);
-        this.statusMessage.setBackground(Color.green);
-        this.statusMessage.setOpaque(true);
+        this.statusMessageLabel.setForeground(Color.BLACK);
+        this.statusMessageLabel.setBackground(Color.green);
+        this.statusMessageLabel.setOpaque(true);
 
 
         //Status Text Field
-        this.statusTextField = createTextField(statusMessage.getX(), statusMessage.getY() + 40, statusMessage.getHeight(), statusMessage.getHeight());
+        this.statusTextField = createTextField(statusMessageLabel.getX(), statusMessageLabel.getY() + 60, statusMessageLabel.getHeight(), statusMessageLabel.getHeight());
         this.statusTextField.setBackground(Color.BLACK);
         this.statusTextField.setEnabled(false);
         this.statusTextField.setDisabledTextColor(Color.gray);
-        this.statusTextField.setText("nothing");
+        this.statusTextField.setText("");
     }
 
     public void tryToConnect()
